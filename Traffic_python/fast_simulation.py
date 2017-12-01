@@ -4,7 +4,7 @@ import math
 ratio = 4
 nx = 2
 ny = 2
-l = 400 / (nx+ny)
+l = int(400/(nx+ny))
 c_dx = [1, 0, -1, 0]
 c_dy = [0, 1, 0, -1]
 l_dx = [0, -1, 0, 1]
@@ -14,7 +14,7 @@ st2 = [0, 0, 0, 0, 0, 0, 0, 0]
 pp = np.zeros((nx,ny,4))
 mycross = []
 Cars = []
-num_frame = int(250/ratio)
+num_frame = int(200/ratio)
 cur_frame = 0
 waiting = np.zeros((nx,ny,4,2))
 not_waiting = np.zeros((nx,ny,4,2))
@@ -34,7 +34,7 @@ def write_log(S):
 
 def get_signal():
     line = raw_input()
-    while line!="2X" and len(line)<2: line+=raw_input()
+    while line!="2X": line+=raw_input()
     #write_log("Recieved signal " + line)
 
 def print_out(S):
@@ -56,7 +56,8 @@ def get_input():
     return line
 
 def send_point():
-  write_log("Total number of cars : " + str(len(Cars)));
+  global s_total_time, Cars
+  write_log("Total number of cars : " + str(len(Cars)))
   total_time = [0,0,0,0]
   for i in range(len(Cars)):
     C = Cars[i]
@@ -71,15 +72,16 @@ def send_point():
   write_log("Point " + S + " sent")
 
 class Cross:
-  mylight = []
   def __init__(self, center_x, center_y):
     self.center_x = center_x
     self.center_y = center_y
+    self.mylight = []
     for i in range(4):
       self.mylight.append(Light(0, i, center_x, center_y))
 
 class Light:
   def __init__(self, lmod, num, cx, cy):
+    global l
     self.lmod = lmod
     self.num = num
     self.di = num
@@ -98,6 +100,7 @@ class Light:
 
 class Car:
   def __init__(self, x, y, i, j, di, mod):
+    global l, nx
     self.v=ratio*6*l/200
     self.w=l/6
     self.crossnum = nx*j + i
@@ -115,6 +118,7 @@ class Car:
     self.t=0
 
   def go_straight(self):
+    global c_dx, c_dy
     self.x += self.v*c_dx[self.di]
     self.y += self.v*c_dy[self.di]
 
@@ -126,6 +130,7 @@ class Car:
     self.y = newy + cy
 
   def changenum(self, n, d):
+    global nx,ny
     self.crossnum = n
     self.xx = n % nx
     self.yy = n / ny
@@ -133,14 +138,19 @@ class Car:
     self.ang = math.pi/2 * self.di
 
   def whereami(self):
+    global nx,ny,width,height
     ex = width/nx
     ey = height/ny
     self.xx = (int)(self.x/ex)
     self.yy = (int)(self.y/ey)
     if self.xx>=nx: self.xx-=1
     if self.yy>=ny: self.yy-=1
+    if self.yy<0:
+      print(self.x, self.y)
     self.crossnum = nx*self.yy + self.xx
-
+  
+  def print_data(self):
+    write_log("x: "+str(self.x)+", y: "+str(self.y)+", turn: "+str(self.turn)+", turning: "+str(self.turning))
 def int_to_string(value, size):
   S = str(int(value))
   len_extra = size-len(S)
@@ -192,16 +202,23 @@ def generate(gen):
                   break
 
 def delete():
-  for i in range(len(Cars)-1,0,-1):
+  global Cars
+  Car_tmp = []
+  for i in range(len(Cars)):
     C = Cars[i]
-    if C.x>width or C.x<0 or C.y>height or C.y<0: del Cars[i]
+    if C.x>width or C.x<0 or C.y>height or C.y<0: continue
+    Car_tmp.append(C)
+  Cars = Car_tmp
+
 
 def change():
+  global Cars
   for i in range(len(Cars)):
     C = Cars[i]
     C.whereami()
 
 def move():
+  global waiting, not_waiting, Cars, mycross 
   for i in range(nx):
     for j in range(ny):
       for k in range(4):
@@ -213,7 +230,7 @@ def move():
     yy = C.yy
     di = C.di
     mod = C.mod
-    turn = C.turn_left
+    turn = C.turn
     lmod = mycross[xx][yy].mylight[di].lmod
     w = C.w
     cancarmove = True
@@ -222,7 +239,7 @@ def move():
       if lmod == 1 or lmod == 3: go = 1
       else: go = 0
     elif turn == 2:
-       if lmod == 2 or lmod == 3: go = 2 // left
+       if lmod == 2 or lmod == 3: go = 2
        else: go = 0
     else: go = 3
     if mycross[xx][yy].center_x - l <= C.x and C.x <= mycross[xx][yy].center_x + l and mycross[xx][yy].center_y - l <= C.y and C.y <= mycross[xx][yy].center_y + l:
@@ -330,23 +347,34 @@ def draw2():
   if (cur_frame+1)%num_frame==0:
   	send_point()
   cur_frame += 1
-  generate(True)
+  if cur_frame<200: generate(True)
+  else: generate(False)
   delete()
   change()
   light_change()
   move()
 
 def light_change():
-  global t
+  global t,nx,ny,mycross,ratio,pp
   t = cur_frame
   for i in range(nx):
     for j in range(ny):
       for k in range(4):
         if mycross[i][j].mylight[k].lmod==9 and ratio*(t - st2[i]) > 60:
-          mycross[i][j].mylight[k].lmod = pp[i][j][k]
+          mycross[i][j].mylight[k].lmod = int(pp[i][j][k])
           pp[i][j][k] = 9
 
 def light_change_string(S):
+  res = ""
+  global cur_frame,pp,st2,mycross,nx,ny
+  for i in range(nx):
+  	  for j in range(ny):
+  	  	  for k in range(4):
+  	  	  	  res+=str(mycross[i][j].mylight[k].lmod)
+  for C in Cars:
+  	  C.print_data()
+  write_log("Old signal : " + res)
+  write_log("Changed signal to "+S)
   for i in range(nx):
     for j in range(ny):
       for k in range(4):
@@ -357,6 +385,7 @@ def light_change_string(S):
           pp[i][j][k] = x
 
 def send_data():
+  global waiting, not_waiting, nx, ny
   S = ""
   move()
   for i in range(nx):
