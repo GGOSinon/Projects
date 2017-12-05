@@ -5,7 +5,8 @@ import os
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 step = 0
-max_train = 10000
+max_train = 1000
+batch_size = 128
 Log = open('Log_fast.txt', 'w')
 Log.close()
 Log = open('Log_loss.txt', 'w')
@@ -100,16 +101,16 @@ keep_prob = tf.placeholder(tf.float32)
 #####
 x = tf.placeholder(tf.float32, [None, 12*4])
 
-W1 = tf.Variable(tf.random_normal([12*4, 128]))
-b1 = tf.Variable(tf.random_normal([128]))
+W1 = tf.Variable(tf.random_normal([12*4, 1024]))
+b1 = tf.Variable(tf.random_normal([1024]))
 
-W2 = tf.Variable(tf.random_normal([128, 128]))
-b2 = tf.Variable(tf.random_normal([128]))
+W2 = tf.Variable(tf.random_normal([1024, 1024]))
+b2 = tf.Variable(tf.random_normal([1024]))
 
-W3 = tf.Variable(tf.random_normal([128, 128]))
-b3 = tf.Variable(tf.random_normal([128]))
+W3 = tf.Variable(tf.random_normal([1024, 1024]))
+b3 = tf.Variable(tf.random_normal([1024]))
 
-Wout = tf.Variable(tf.random_normal([128, 17]))
+Wout = tf.Variable(tf.random_normal([1024, 17]))
 bout = tf.Variable(tf.random_normal([17]))
 
 hidden1 = lrelu(tf.matmul(x, W1) + b1)
@@ -133,6 +134,8 @@ prob = 1.
 
 #for i in range(step/100):
     #prob = prob*0.99
+
+del_num = 0
 
 with tf.Session() as sess :
     sess.run(init)
@@ -201,13 +204,24 @@ with tf.Session() as sess :
             log_result(step/50, avg_loss/50,(avg_acc/50)*100)
             avg_loss = 0.
             avg_acc = 0.
+        S = ""
         if len(train_mem)==max_train:
-            p = random.randrange(0, max_train)
-            dat_training, point_training, action_training = get_train(p)
+            dat_training = []
+            point_training = []
+            action_training = []
+            for i in range(batch_size/l):
+                p = random.randrange(0, max_train)
+                dat_tmp, point_tmp, action_tmp = get_train(p)
+                for j in range(l):
+                    dat_training.append(dat_tmp[j])
+                    point_training.append(point_tmp[j])
+                    action_training.append(action_tmp[j])
+                S += (str(p) + ", ")
             result_train = []
-            write_log("Trained data " + str(p))
+            write_log("Trained data " + S)
+            print(len(dat_training))
             res = sess.run(y, feed_dict={x:dat_training, keep_prob:1.})
-            for i in range(l):
+            for i in range(batch_size):
                 tmp = []
                 for j in range(17):
                    if j != action_training[i]: tmp.append(res[i][j])
@@ -216,8 +230,9 @@ with tf.Session() as sess :
             #print(res)
             #print(result_train)
             sess.run(opt, feed_dict={x:dat_training, ans:result_train, keep_prob:dropout})
-            add_train(dat_train, points, action, p)
+            add_train(dat_train, points, action, del_num)
+            del_num = (del_num+1)%max_train
         else:
             add_train(dat_train, points, action, -1)
-        saver.save(sess, "model.ckpt")
+        saver.save(sess, "./model/model.ckpt")
     print("Yeah!\n")

@@ -4,7 +4,7 @@ import math
 ratio = 4
 nx = 2
 ny = 2
-l = int(400/(nx+ny))
+l = float(400/(nx+ny))
 c_dx = [1, 0, -1, 0]
 c_dy = [0, 1, 0, -1]
 l_dx = [0, -1, 0, 1]
@@ -57,7 +57,7 @@ def get_input():
 
 def send_point():
   global s_total_time, Cars
-  write_log("Total number of cars : " + str(len(Cars)))
+  #write_log("Total number of cars : " + str(len(Cars)))
   total_time = [0,0,0,0]
   for i in range(len(Cars)):
     C = Cars[i]
@@ -347,8 +347,9 @@ def draw2():
   if (cur_frame+1)%num_frame==0:
   	send_point()
   cur_frame += 1
-  if cur_frame<200: generate(True)
-  else: generate(False)
+  generate(True)
+  #if cur_frame<200: generate(True)
+  #else: generate(False)
   delete()
   change()
   light_change()
@@ -394,7 +395,8 @@ def send_data():
         S+=int_to_string(waiting[i][j][k][0], 2)
         S+=int_to_string(waiting[i][j][k][1], 2)
         S+=int_to_string(not_waiting[i][j][k][0] + not_waiting[i][j][k][1], 2)
-  print_out(S) 
+  print_out(S)
+ 
   write_log("Data sent : " + S + "(length = "+str(len(S))+")")
 
 for i in range(nx):
